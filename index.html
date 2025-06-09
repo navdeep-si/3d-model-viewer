@@ -2,16 +2,18 @@
 <html>
 <head>
   <title>3D House Viewer</title>
-  <!-- Fixed script URL (should point to model-viewer.js, not your USDZ file) -->
   <script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
-  <!-- Add legacy script for older browsers -->
   <script nomodule src="https://unpkg.com/@google/model-viewer/dist/model-viewer-legacy.js"></script>
   <style>
-    body { margin: 0; }
+    body { 
+      margin: 0;
+      font-family: Arial, sans-serif;
+    }
     model-viewer { 
       width: 100%; 
       height: 100vh;
-      --progress-bar-color: #ff6b6b;
+      --progress-bar-color: #4285f4;
+      background: #f0f0f0;
     }
     .controls {
       position: fixed;
@@ -19,36 +21,193 @@
       left: 50%;
       transform: translateX(-50%);
       background: rgba(0,0,0,0.7);
-      padding: 10px;
-      border-radius: 20px;
+      padding: 12px 20px;
+      border-radius: 30px;
+      display: flex;
+      gap: 10px;
+      backdrop-filter: blur(10px);
     }
     button {
       background: #4285f4;
       color: white;
       border: none;
-      padding: 8px 15px;
-      border-radius: 15px;
-      margin: 0 5px;
+      padding: 10px 20px;
+      border-radius: 20px;
       cursor: pointer;
+      font-size: 14px;
+    }
+    #error {
+      position: fixed;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(255,0,0,0.8);
+      color: white;
+      padding: 15px;
+      border-radius: 8px;
+      max-width: 80%;
+      display: none;
+    }
+    #loading {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.8);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      color: white;
+      z-index: 100;
+    }
+    .spinner {
+      border: 5px solid rgba(255,255,255,0.3);
+      border-radius: 50%;
+      border-top: 5px solid #4285f4;
+      width: 50px;
+      height: 50px;
+      animation: spin 1s linear infinite;
+      margin-bottom: 20px;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
     }
   </style>
 </head>
 <body>
+  <div id="loading">
+    <div class="spinner"></div>
+    <p>Loading 3D Model...</p>
+  </div>
+
+  <div id="error"></div>
+
   <model-viewer
-    src="https://raw.githubusercontent.com/navdeep-si/3d-model-viewer/main/Suburban_House_V2.usdz"
-    ios-src="https://raw.githubusercontent.com/navdeep-si/3d-model-viewer/main/Suburban_House_V2.usdz"
+    id="viewer"
     alt="Suburban House"
     ar
-    ar-modes="scene-viewer quick-look"
+    ar-modes="scene-viewer quick-look webxr"
     camera-controls
+    environment-image="neutral"
+    shadow-intensity="1"
     auto-rotate
-    environment-image="neutral">
+    camera-orbit="0deg 75deg 105%">
     
     <div class="controls">
-      <button onclick="document.querySelector('model-viewer').activateAR()">
-        View in AR
-      </button>
+      <button id="arButton">View in AR</button>
+      <button id="downloadButton">Download Model</button>
     </div>
   </model-viewer>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const viewer = document.getElementById('viewer');
+      const loading = document.getElementById('loading');
+      const error = document.getElementById('error');
+      const arButton = document.getElementById('arButton');
+      const downloadButton = document.getElementById('downloadButton');
+
+      // Try multiple potential model sources
+      const modelSources = [
+        // Direct GitHub raw link (may have CORS issues)
+        "https://raw.githubusercontent.com/navdeep-si/3d-model-viewer/main/Suburban_House_V2.usdz",
+        
+        // jsDelivr CDN mirror (better CORS support)
+        "https://cdn.jsdelivr.net/gh/navdeep-si/3d-model-viewer@main/Suburban_House_V2.usdz",
+        
+        // Fallback: If you've enabled GitHub Pages
+        "https://navdeep-si.github.io/3d-model-viewer/Suburban_House_V2.usdz"
+      ];
+
+      // Test each source until one works
+      let currentSourceIndex = 0;
+      
+      function tryLoadModel() {
+        if (currentSourceIndex >= modelSources.length) {
+          showError("All model sources failed to load. Please check:");
+          return;
+        }
+
+        const source = modelSources[currentSourceIndex];
+        console.log("Trying source:", source);
+        
+        viewer.src = source;
+        viewer.iosSrc = source;
+
+        // Verify the file exists
+        checkFileExists(source).then(exists => {
+          if (!exists) {
+            currentSourceIndex++;
+            tryLoadModel();
+          }
+        });
+      }
+
+      function checkFileExists(url) {
+        return fetch(url, { method: 'HEAD' })
+          .then(res => {
+            if (!res.ok) {
+              currentSourceIndex++;
+              tryLoadModel();
+              return false;
+            }
+            return true;
+          })
+          .catch(() => {
+            currentSourceIndex++;
+            tryLoadModel();
+            return false;
+          });
+      }
+
+      function showError(message) {
+        error.innerHTML = `
+          <strong>Error Loading Model</strong>
+          <p>${message}</p>
+          <ul>
+            <li>Check your internet connection</li>
+            <li>Verify the file exists at the URL</li>
+            <li>Try refreshing the page</li>
+          </ul>
+        `;
+        error.style.display = 'block';
+        loading.style.display = 'none';
+      }
+
+      // Event listeners
+      viewer.addEventListener('load', () => {
+        loading.style.display = 'none';
+      });
+
+      viewer.addEventListener('error', (event) => {
+        console.error("Model error:", event.detail);
+        currentSourceIndex++;
+        if (currentSourceIndex < modelSources.length) {
+          tryLoadModel();
+        } else {
+          showError("Failed to load 3D model from all available sources.");
+        }
+      });
+
+      arButton.addEventListener('click', () => {
+        viewer.activateAR();
+      });
+
+      downloadButton.addEventListener('click', () => {
+        const link = document.createElement('a');
+        link.href = viewer.src;
+        link.download = 'Suburban_House_V2.usdz';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      });
+
+      // Start loading
+      tryLoadModel();
+    });
+  </script>
 </body>
 </html>
