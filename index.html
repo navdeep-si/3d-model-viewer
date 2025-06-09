@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>3D House Viewer</title>
+  <script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
+  <style>
+    body { margin: 0; }
+    model-viewer { 
+      width: 100%; 
+      height: 100vh;
+      --progress-bar-color: #ff6b6b;
+    }
+    .controls {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0,0,0,0.7);
+      padding: 10px;
+      border-radius: 20px;
+    }
+    button {
+      background: #4285f4;
+      color: white;
+      border: none;
+      padding: 8px 15px;
+      border-radius: 15px;
+      margin: 0 5px;
+    }
+  </style>
+</head>
+<body>
+  <model-viewer
+    src="Suburban_House_V2.usdz"
+    ios-src="Suburban_House_V2.usdz"
+    alt="Suburban House"
+    ar
+    camera-controls
+    auto-rotate
+    environment-image="neutral">
+    
+    <div class="controls">
+      <button onclick="document.querySelector('model-viewer').activateAR()">
+        View in AR
+      </button>
+    </div>
+  </model-viewer>
+</body>
+</html>
